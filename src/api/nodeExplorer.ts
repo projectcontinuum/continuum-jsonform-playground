@@ -1,10 +1,7 @@
 import { NodeCatalogEntry, NodeExplorerTreeItem } from '../types/nodeExplorer';
 
-const API_SERVER_URL: string =
-  (import.meta.env.VITE_API_SERVER_URL as string | undefined) || 'http://localhost:8081';
-
-export async function fetchChildren(parentId?: string): Promise<NodeExplorerTreeItem[]> {
-  const url = new URL('/api/v1/node-explorer/children', API_SERVER_URL);
+export async function fetchChildren(apiServerUrl: string, parentId?: string): Promise<NodeExplorerTreeItem[]> {
+  const url = new URL('/api/v1/node-explorer/children', apiServerUrl);
   if (parentId) {
     url.searchParams.set('parentId', parentId);
   }
@@ -15,8 +12,13 @@ export async function fetchChildren(parentId?: string): Promise<NodeExplorerTree
   return response.json();
 }
 
-async function walk(parentId: string | undefined, categoryPath: string, out: NodeCatalogEntry[]): Promise<void> {
-  const items = await fetchChildren(parentId);
+async function walk(
+  apiServerUrl: string,
+  parentId: string | undefined,
+  categoryPath: string,
+  out: NodeCatalogEntry[]
+): Promise<void> {
+  const items = await fetchChildren(apiServerUrl, parentId);
   await Promise.all(
     items.map(async (item) => {
       if (item.type === 'NODE' && item.nodeInfo) {
@@ -28,15 +30,15 @@ async function walk(parentId: string | undefined, categoryPath: string, out: Nod
         });
       } else if (item.type === 'CATEGORY' && item.hasChildren) {
         const childPath = categoryPath ? `${categoryPath} / ${item.name}` : item.name;
-        await walk(item.id, childPath, out);
+        await walk(apiServerUrl, item.id, childPath, out);
       }
     })
   );
 }
 
-export async function fetchNodeCatalog(): Promise<NodeCatalogEntry[]> {
+export async function fetchNodeCatalog(apiServerUrl: string): Promise<NodeCatalogEntry[]> {
   const entries: NodeCatalogEntry[] = [];
-  await walk(undefined, '', entries);
+  await walk(apiServerUrl, undefined, '', entries);
   entries.sort((a, b) => a.categoryPath.localeCompare(b.categoryPath) || a.name.localeCompare(b.name));
   return entries;
 }

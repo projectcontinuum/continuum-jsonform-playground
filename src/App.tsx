@@ -18,12 +18,14 @@ import {
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { JsonFormsCore, JsonSchema, UISchemaElement } from '@jsonforms/core';
 import { darkTheme, lightTheme } from './theme';
 import { EXAMPLES } from './examples';
 import { JsonEditorPanel } from './components/JsonEditorPanel';
 import { FormPreviewPanel } from './components/FormPreviewPanel';
+import { NodeDialogPreviewModal } from './components/NodeDialogPreviewModal';
 import { useNodeCatalog } from './hooks/useNodeCatalog';
 import { NodeCatalogEntry } from './types/nodeExplorer';
 
@@ -48,10 +50,13 @@ const resizeHandleHorizontalSx = {
 };
 
 const API_CATALOG_ENABLED_STORAGE_KEY = 'continuum-playground:apiCatalogEnabled';
+const API_SERVER_URL_STORAGE_KEY = 'continuum-playground:apiServerUrl';
+const DEFAULT_API_SERVER_URL = 'http://localhost:8081';
 
 export default function App() {
   const [exampleIndex, setExampleIndex] = React.useState(1);
   const [darkMode, setDarkMode] = React.useState(true);
+  const [dialogPreviewOpen, setDialogPreviewOpen] = React.useState(false);
 
   const initial = EXAMPLES[exampleIndex];
   const [schemaText, setSchemaText] = React.useState(() => JSON.stringify(initial.schema, null, 2));
@@ -77,8 +82,17 @@ export default function App() {
     localStorage.setItem(API_CATALOG_ENABLED_STORAGE_KEY, String(apiCatalogEnabled));
   }, [apiCatalogEnabled]);
 
+  // Configured from the playground UI rather than a build-time env var, so it can be pointed
+  // at a different api-server instance without rebuilding.
+  const [apiServerUrl, setApiServerUrl] = React.useState(
+    () => localStorage.getItem(API_SERVER_URL_STORAGE_KEY) || DEFAULT_API_SERVER_URL
+  );
+  React.useEffect(() => {
+    localStorage.setItem(API_SERVER_URL_STORAGE_KEY, apiServerUrl);
+  }, [apiServerUrl]);
+
   const { entries: nodeCatalog, loading: catalogLoading, error: catalogError, refresh: refreshCatalog } =
-    useNodeCatalog(apiCatalogEnabled);
+    useNodeCatalog(apiCatalogEnabled, apiServerUrl);
   const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null);
   const selectedNode = nodeCatalog.find((entry) => entry.id === selectedNodeId) || null;
 
@@ -184,6 +198,13 @@ export default function App() {
               label="Load from API"
               sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
             />
+            <TextField
+              size="small"
+              label="API Server URL"
+              value={apiServerUrl}
+              onChange={(e) => setApiServerUrl(e.target.value)}
+              sx={{ minWidth: 220, flexShrink: 0 }}
+            />
             <Autocomplete
               size="small"
               sx={{ minWidth: 320 }}
@@ -231,6 +252,11 @@ export default function App() {
               />
             )}
             <Box sx={{ flex: 1 }} />
+            <Tooltip title="Preview in a NodeDialog-style popup (real dialog chrome, default 600x600 size)">
+              <IconButton size="small" onClick={() => setDialogPreviewOpen(true)}>
+                <OpenInNewIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
             <IconButton onClick={() => setDarkMode((d) => !d)}>
               {darkMode ? <Brightness7Icon /> : <Brightness4Icon />}
             </IconButton>
@@ -288,6 +314,14 @@ export default function App() {
           </PanelGroup>
         </Box>
       </Box>
+      <NodeDialogPreviewModal
+        open={dialogPreviewOpen}
+        onClose={() => setDialogPreviewOpen(false)}
+        schema={schema}
+        uischema={uischema}
+        data={data}
+        onDataChange={handleFormDataChange}
+      />
     </ThemeProvider>
   );
 }
