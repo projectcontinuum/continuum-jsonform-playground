@@ -1,24 +1,34 @@
 import React from 'react';
 import {
   AppBar,
+  Autocomplete,
   Box,
+  Chip,
+  CircularProgress,
   CssBaseline,
   FormControl,
+  FormControlLabel,
   IconButton,
   MenuItem,
   Select,
+  Switch,
+  TextField,
   ThemeProvider,
   Toolbar,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { JsonFormsCore, JsonSchema, UISchemaElement } from '@jsonforms/core';
 import { darkTheme, lightTheme } from './theme';
 import { EXAMPLES } from './examples';
 import { JsonEditorPanel } from './components/JsonEditorPanel';
 import { FormPreviewPanel } from './components/FormPreviewPanel';
+import { useNodeCatalog } from './hooks/useNodeCatalog';
+import { NodeCatalogEntry } from './types/nodeExplorer';
 
 function safeParse(text: string): { value: any; error: string | null } {
   try {
@@ -40,6 +50,8 @@ const resizeHandleHorizontalSx = {
   bgcolor: 'divider',
 };
 
+const API_CATALOG_ENABLED_STORAGE_KEY = 'continuum-playground:apiCatalogEnabled';
+
 export default function App() {
   const [exampleIndex, setExampleIndex] = React.useState(1);
   const [darkMode, setDarkMode] = React.useState(true);
@@ -59,6 +71,33 @@ export default function App() {
   const [errorCount, setErrorCount] = React.useState(0);
 
   const lastDataEditedBy = React.useRef<'form' | 'editor' | null>(null);
+
+  // Walking the full node-explorer tree is slow, so loading it from the API server is opt-in.
+  const [apiCatalogEnabled, setApiCatalogEnabled] = React.useState(
+    () => localStorage.getItem(API_CATALOG_ENABLED_STORAGE_KEY) === 'true'
+  );
+  React.useEffect(() => {
+    localStorage.setItem(API_CATALOG_ENABLED_STORAGE_KEY, String(apiCatalogEnabled));
+  }, [apiCatalogEnabled]);
+
+  const { entries: nodeCatalog, loading: catalogLoading, error: catalogError, refresh: refreshCatalog } =
+    useNodeCatalog(apiCatalogEnabled);
+  const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null);
+  const selectedNode = nodeCatalog.find((entry) => entry.id === selectedNodeId) || null;
+
+  const applyNodeFromCatalog = React.useCallback((entry: NodeCatalogEntry) => {
+    setSelectedNodeId(entry.id);
+    setSchemaText(JSON.stringify(entry.nodeInfo.propertiesSchema, null, 2));
+    setUischemaText(JSON.stringify(entry.nodeInfo.propertiesUISchema, null, 2));
+    setDataText(JSON.stringify(entry.nodeInfo.properties, null, 2));
+    setSchema(entry.nodeInfo.propertiesSchema as JsonSchema);
+    setUischema(entry.nodeInfo.propertiesUISchema as UISchemaElement);
+    setData(entry.nodeInfo.properties);
+    setSchemaError(null);
+    setUischemaError(null);
+    setDataError(null);
+    setErrorCount(0);
+  }, []);
 
   const applyExample = React.useCallback((index: number) => {
     const example = EXAMPLES[index];
@@ -134,6 +173,63 @@ export default function App() {
                 ))}
               </Select>
             </FormControl>
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={apiCatalogEnabled}
+                  onChange={(e) => setApiCatalogEnabled(e.target.checked)}
+                />
+              }
+              label="Load from API"
+              sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+            />
+            <Autocomplete
+              size="small"
+              sx={{ minWidth: 320 }}
+              options={nodeCatalog}
+              groupBy={(option) => option.categoryPath}
+              getOptionLabel={(option) => option.name}
+              value={selectedNode}
+              loading={catalogLoading}
+              disabled={catalogLoading && nodeCatalog.length === 0}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              onChange={(_event, value) => {
+                if (value) applyNodeFromCatalog(value);
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Load Node from API Server"
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {catalogLoading ? <CircularProgress color="inherit" size={16} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+            />
+            <Tooltip title="Refresh node catalog from API server">
+              <IconButton size="small" onClick={refreshCatalog} disabled={catalogLoading}>
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            {catalogError && (
+              <Chip
+                size="small"
+                color="warning"
+                variant="outlined"
+                label="API server unreachable"
+                onClick={refreshCatalog}
+                deleteIcon={<RefreshIcon fontSize="small" />}
+                onDelete={refreshCatalog}
+                title={catalogError}
+              />
+            )}
             <Box sx={{ flex: 1 }} />
             <IconButton onClick={() => setDarkMode((d) => !d)}>
               {darkMode ? <Brightness7Icon /> : <Brightness4Icon />}

@@ -33,6 +33,12 @@ const CredentialRenderer: React.FC<CredentialRendererProps> = (props) => {
 
   const [credentials, setCredentials] = React.useState<MockCredential[]>([]);
   const [loading, setLoading] = React.useState(false);
+  // No real credentials-server here, so this state can't actually be
+  // populated by the mock fetch below - kept only so this component's
+  // structure (and the bounded FormHelperText render below) mirrors the
+  // real workbench's CredentialRenderer.tsx, whose `error` can hold an
+  // arbitrarily long backend response body (see CredentialsService.ts).
+  const [error] = React.useState<string | null>(null);
 
   const fetchCredentials = React.useCallback(async () => {
     setLoading(true);
@@ -79,8 +85,8 @@ const CredentialRenderer: React.FC<CredentialRendererProps> = (props) => {
       )}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <Autocomplete
-          fullWidth
           size="small"
+          sx={{ flex: '1 1 auto', minWidth: 0 }}
           options={credentials}
           getOptionLabel={(option) => option.name}
           value={credentials.find((c) => c.name === data) || null}
@@ -104,7 +110,7 @@ const CredentialRenderer: React.FC<CredentialRendererProps> = (props) => {
             <TextField
               {...params}
               label="Select Credential"
-              error={hasError}
+              error={hasError || !!error}
               InputProps={{
                 ...params.InputProps,
                 endAdornment: (
@@ -145,6 +151,15 @@ const CredentialRenderer: React.FC<CredentialRendererProps> = (props) => {
       {errorMessage && (
         <FormHelperText error={true} sx={{ mt: 1 }}>
           {errorMessage}
+        </FormHelperText>
+      )}
+      {error && (
+        // Bounded so a long/unexpected backend response body (e.g. an HTML
+        // error page returned instead of JSON) can never balloon this
+        // Accordion item's height - see CredentialsService.ts / the
+        // matching fix in the real workbench's CredentialRenderer.tsx.
+        <FormHelperText error={true} sx={{ mt: 1, maxHeight: 60, overflow: 'auto', wordBreak: 'break-word' }}>
+          {error}
         </FormHelperText>
       )}
     </Box>
