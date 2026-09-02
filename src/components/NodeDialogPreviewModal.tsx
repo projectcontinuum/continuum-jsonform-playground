@@ -16,7 +16,7 @@ import { JsonForms } from '@jsonforms/react';
 import { materialCells } from '@jsonforms/material-renderers';
 import { JsonFormsCore, JsonSchema, UISchemaElement } from '@jsonforms/core';
 import { customRenderers } from '../renderers';
-import { nodeDialogFormSxWithTopPadding } from '../nodeDialogFormSx';
+import { nodeDialogFormSx } from '../nodeDialogFormSx';
 
 interface StyledDialogProps {
   customWidth?: number;
@@ -167,28 +167,44 @@ export function NodeDialogPreviewModal({ open, onClose, schema, uischema, data, 
         <CloseIcon />
       </IconButton>
       <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
-        <Box sx={{ width: '100%', minWidth: 0, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', p: 2 }}>
-          <Box
-            sx={{
-              width: '100%',
-              minWidth: 0,
-              boxSizing: 'border-box',
-              display: 'flex',
-              flexDirection: 'column',
-              overflowX: 'auto',
-              overflowY: 'visible',
-              ...nodeDialogFormSxWithTopPadding,
-            }}
-          >
-            <JsonForms
-              schema={schema}
-              uischema={uischema}
-              data={data}
-              renderers={customRenderers}
-              cells={materialCells}
-              onChange={onDataChange}
-            />
-          </Box>
+        {/*
+          NodeDialog.tsx's own TabPanel div is the one element in that component actually
+          declared as the scroll owner (flex: 1, minHeight: 0, overflowY/X: 'auto'). Its single
+          child there never itself sets overflow, which matters: a flex item whose overflow is
+          the default 'visible' keeps its content-based automatic minimum height, so excess
+          height becomes genuine overflow the scroll owner can show a scrollbar for. Give that
+          same role to a *second* flex item with overflow set (as this file used to, mirroring
+          NodeDialog's own further-nested Box) and its automatic minimum height collapses to 0
+          instead - the flexbox algorithm then happily shrinks it below its content size to fit
+          whatever room is left, silently clipping everything under the fold rather than ever
+          reporting overflow. This modal skips NodeDialog's Properties/Retry Policy tabs (not
+          applicable to an arbitrary schema), so - like FormPreviewPanel - it wraps <JsonForms>
+          in a single box that both scrolls and holds the content, instead of NodeDialog's
+          TabPanel-plus-two-Boxes chain.
+        */}
+        <Box
+          sx={{
+            width: '100%',
+            minWidth: 0,
+            boxSizing: 'border-box',
+            display: 'flex',
+            flexDirection: 'column',
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            overflowX: 'auto',
+            p: 2,
+            ...nodeDialogFormSx,
+          }}
+        >
+          <JsonForms
+            schema={schema}
+            uischema={uischema}
+            data={data}
+            renderers={customRenderers}
+            cells={materialCells}
+            onChange={onDataChange}
+          />
         </Box>
       </DialogContent>
       <DialogActions>
