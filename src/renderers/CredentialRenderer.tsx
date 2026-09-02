@@ -83,7 +83,7 @@ const CredentialRenderer: React.FC<CredentialRendererProps> = (props) => {
           {label}
         </Typography>
       )}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
         <Autocomplete
           size="small"
           sx={{ flex: '1 1 auto', minWidth: 0 }}

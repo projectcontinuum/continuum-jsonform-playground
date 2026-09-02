@@ -6,11 +6,8 @@ import {
   Chip,
   CircularProgress,
   CssBaseline,
-  FormControl,
   FormControlLabel,
   IconButton,
-  MenuItem,
-  Select,
   Switch,
   TextField,
   ThemeProvider,
@@ -164,15 +161,18 @@ export default function App() {
             <Typography variant="subtitle1" sx={{ fontWeight: 600, flexShrink: 0 }}>
               Continuum JSONForms Playground
             </Typography>
-            <FormControl size="small" sx={{ minWidth: 220 }}>
-              <Select value={exampleIndex} onChange={(e) => applyExample(Number(e.target.value))}>
-                {EXAMPLES.map((example, index) => (
-                  <MenuItem key={example.name} value={index}>
-                    {example.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Autocomplete
+              size="small"
+              sx={{ minWidth: 280 }}
+              options={EXAMPLES}
+              getOptionLabel={(option) => option.name}
+              value={EXAMPLES[exampleIndex]}
+              isOptionEqualToValue={(option, value) => option.name === value.name}
+              onChange={(_event, value) => {
+                if (value) applyExample(EXAMPLES.indexOf(value));
+              }}
+              renderInput={(params) => <TextField {...params} label="Example" />}
+            />
             <FormControlLabel
               control={
                 <Switch

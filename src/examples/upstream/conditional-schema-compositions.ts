@@ -1,0 +1,90 @@
+import { UISchemaElement } from '@jsonforms/core';
+import { PlaygroundExample } from '../types';
+
+const examples: PlaygroundExample[] = [
+  {
+    name: 'JSONForms: Conditional Schema Compositions',
+    schema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          minLength: 1,
+          description: "The task's name",
+        },
+        recurrence: {
+          type: 'string',
+          enum: ['Never', 'Daily', 'Weekly', 'Monthly'],
+        },
+      },
+      anyOf: [
+        {
+          if: {
+            properties: {
+              recurrence: {
+                const: 'Never',
+              },
+            },
+          },
+          then: {
+            properties: {
+              lastname: {
+                type: 'string',
+              },
+              age: {
+                type: 'number',
+              },
+            },
+          },
+        },
+      ],
+    },
+    uischema: {
+      type: 'HorizontalLayout',
+      elements: [
+        {
+          type: 'VerticalLayout',
+          elements: [
+            {
+              type: 'Control',
+              scope: '#/properties/name',
+            },
+            {
+              type: 'Control',
+              scope: '#/properties/recurrence',
+            },
+            {
+              type: 'Control',
+              scope: '#/anyOf/0/then/properties/lastname',
+              rule: {
+                effect: 'SHOW',
+                condition: {
+                  scope: '#/properties/recurrence',
+                  schema: {
+                    const: 'Never',
+                  },
+                },
+              },
+            },
+            {
+              type: 'Control',
+              scope: '#/properties/age',
+              rule: {
+                effect: 'SHOW',
+                condition: {
+                  scope: '#/properties/recurrence',
+                  schema: {
+                    const: 'Never',
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    } as UISchemaElement,
+    data: {},
+  },
+];
+
+export default examples;
